@@ -34,7 +34,43 @@ func newWarning(err error) error {
 // user). It will return a warning for known issues (missing scope, archiving
 // channel, auth issues) or an error for anything else. It should be used in
 // favour of PostMessageContext in almost all contexts.
-func PostMessage() (messageTs *string, err error) {
+func PostMessage(
+  ctx context.Context,
+	sc slackclient.SlackClientExtended,
+	channelID string,
+	fallbackText string,
+	messageOpts ...slack.MsgOption,
+) (messageTs *string, warning error, err error) {
+	messageOpts = append(messageOpts,
+    slack.MsgOptionText(fallbackText, false))
+
+	//lint:ignore SA1019 we want to allow this to be called only inside this helper
+	_, messageTS, err := sc.PostMessageContext(
+    ctx, channelID, messageOpts...)
+
+	if err != nil {
+		if slackerrors.IsChannelNotFoundErr(err) ||
+			slackerrors.IsIsArchivedErr(err) ||
+			slackerrors.IsAuthenticationError(err) ||
+			slackerrors.IsMissingScopeErr(err) {
+			return nil, err, nil
+		}
+		return nil, nil, err
+	}
+	return &messageTS, nil, nil
+}
+
+// PostMessage tries to post a message to a given Slack channel (or
+// user). It will return a warning for known issues (missing scope, archiving
+// channel, auth issues) or an error for anything else. It should be used in
+// favour of PostMessageContext in almost all contexts.
+func PostMessage(
+  ctx context.Context,
+	sc slackclient.SlackClientExtended,
+	channelID string,
+	fallbackText string,
+	messageOpts ...slack.MsgOption,
+) (messageTs *string, err error) {
 	messageOpts = append(messageOpts,
 		slack.MsgOptionText(fallbackText, false))
 
